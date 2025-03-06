@@ -36,6 +36,13 @@ export async function action({ params, request }: ActionFunctionArgs) {
 	const title = formData.get('title')
 	const content = formData.get('content')
 
+	invariantResponse(typeof title === 'string', 'Title must be a string', {
+		status: 400,
+	})
+	invariantResponse(typeof content === 'string', 'Content must be a string', {
+		status: 400,
+	})
+
 	db.note.update({
 		where: {
 			id: {
@@ -43,14 +50,14 @@ export async function action({ params, request }: ActionFunctionArgs) {
 			},
 		},
 
-		//@ts-ignore
 		data: {
 			title,
 			content,
 		},
 	})
 
-	return redirect(`..`)
+	// return redirect(`..`)
+	return redirect(`/users/${params.username}/notes/${params.noteId}`)
 	// return redirect(`/notes/${params.noteId}`)
 }
 
