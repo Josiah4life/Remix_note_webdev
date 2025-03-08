@@ -1,10 +1,11 @@
 import os from 'node:os'
 import { cssBundleHref } from '@remix-run/css-bundle'
-import { json, type LinksFunction } from '@remix-run/node'
+import { json, type MetaFunction, type LinksFunction } from '@remix-run/node'
 import {
 	Link,
 	Links,
 	LiveReload,
+	Meta,
 	Outlet,
 	Scripts,
 	ScrollRestoration,
@@ -79,7 +80,11 @@ export default function App() {
 	return (
 		<html lang="en" className="h-full overflow-x-hidden">
 			<head>
+				<Meta />
 				<Links />
+				<meta charSet="utf-8" />
+				<meta name="viewport" content="width=device-width.initial-scale=1" />
+
 				{/* <link rel="icon" type="image/svg+xml" href="/favicon.svg" /> */}
 			</head>
 			<body className="flex h-full flex-col justify-between bg-background text-foreground">
@@ -117,4 +122,11 @@ export default function App() {
 			</body>
 		</html>
 	)
+}
+
+export const meta: MetaFunction = () => {
+	return [
+		{ title: 'Epic Notes' },
+		{ name: 'description', content: "Your own captain's log" },
+	]
 }

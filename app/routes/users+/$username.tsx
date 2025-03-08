@@ -1,4 +1,8 @@
-import { json, type LoaderFunctionArgs } from '@remix-run/node'
+import {
+	json,
+	type MetaFunction,
+	type LoaderFunctionArgs,
+} from '@remix-run/node'
 import { Link, useLoaderData } from '@remix-run/react'
 import { db } from '#app/utils/db.server.ts'
 import { invariantResponse } from '#app/utils/misc.tsx'
@@ -23,6 +27,20 @@ export async function loader({ params }: LoaderFunctionArgs) {
 			username: user.username,
 		},
 	})
+}
+
+export const meta: MetaFunction<typeof loader> = ({ data, params }) => {
+	const displayName = data?.user.name ?? params.username
+
+	return [
+		{
+			title: `${displayName} | Epic Notes`,
+		},
+		{
+			name: 'description',
+			content: `Checkout ${displayName} on Epic Notes`,
+		},
+	]
 }
 
 export default function ProfileRoute() {
