@@ -48,7 +48,7 @@ export default function NoteRoute() {
 			</div>
 			<div className={floatingToolbarClassName}>
 				<Form method="POST">
-					<Button variant="destructive" type="submit">
+					<Button variant="destructive" type="submit" name="intent">
 						Delete
 					</Button>
 				</Form>

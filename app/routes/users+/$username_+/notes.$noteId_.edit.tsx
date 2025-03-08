@@ -4,11 +4,17 @@ import {
 	type LoaderFunctionArgs,
 	redirect,
 } from '@remix-run/node'
-import { Form, useLoaderData } from '@remix-run/react'
+import {
+	Form,
+	useFormAction,
+	useLoaderData,
+	useNavigation,
+} from '@remix-run/react'
 import { floatingToolbarClassName } from '#app/components/floating-toolbar.tsx'
 import { Button } from '#app/components/ui/button.tsx'
 import { Input } from '#app/components/ui/input.tsx'
 import { Label } from '#app/components/ui/label.tsx'
+import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { db } from '#app/utils/db.server.ts'
 import { invariantResponse } from '#app/utils/misc.tsx'
 
@@ -63,6 +69,13 @@ export async function action({ params, request }: ActionFunctionArgs) {
 
 export default function NoteEdit() {
 	const data = useLoaderData<typeof loader>()
+	const navigation = useNavigation()
+	const formAction = useFormAction()
+
+	const isPending =
+		navigation.state !== 'idle' &&
+		navigation.formAction === formAction &&
+		navigation.formMethod === 'POST'
 
 	return (
 		<Form
@@ -81,7 +94,13 @@ export default function NoteEdit() {
 			</div>
 			<div className={floatingToolbarClassName}>
 				<Button variant="destructive">Reset</Button>
-				<Button type="submit">Submit</Button>
+				<StatusButton
+					type="submit"
+					disabled={isPending}
+					status={isPending ? 'pending' : 'idle'}
+				>
+					Submit
+				</StatusButton>
 			</div>
 		</Form>
 	)

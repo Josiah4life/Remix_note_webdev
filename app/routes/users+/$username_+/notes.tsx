@@ -55,7 +55,9 @@ export default function NotesRoute() {
 							{data.notes.map(note => (
 								<li key={note.id} className="p-1 pr-0">
 									<NavLink
+										prefetch="intent"
 										to={note.id}
+										preventScrollReset
 										className={({ isActive }) =>
 											cn(navLinkDefaultClassName, isActive && 'bg-accent')
 										}
