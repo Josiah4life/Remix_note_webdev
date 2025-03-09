@@ -11,6 +11,7 @@ import {
 	ScrollRestoration,
 	useLoaderData,
 } from '@remix-run/react'
+import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { getEnv } from '#app/utils/env.server.ts'
 import faviconAssetUrl from './assets/favicon.svg'
 
@@ -77,6 +78,41 @@ export async function loader() {
 
 export default function App() {
 	const data = useLoaderData<typeof loader>()
+
+	return (
+		<Document>
+			<header className="container mx-auto py-6">
+				<nav className="flex justify-between">
+					<Link to="/">
+						<div className="font-light">epic</div>
+						<div className="font-bold">notes</div>
+					</Link>
+				</nav>
+			</header>
+
+			<div className="flex-1">
+				<Outlet />
+			</div>
+
+			<div className="container mx-auto flex justify-between">
+				<Link to="/">
+					<div className="font-light">epic</div>
+					<div className="font-bold">notes</div>
+				</Link>
+				<p>Built with ♥️ by {data.username}</p>
+			</div>
+			<div className="h-5" />
+
+			<script
+				dangerouslySetInnerHTML={{
+					__html: `window.ENV = ${JSON.stringify(data.ENV)}`,
+				}}
+			/>
+		</Document>
+	)
+}
+
+export function Document({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" className="h-full overflow-x-hidden">
 			<head>
@@ -88,37 +124,12 @@ export default function App() {
 				{/* <link rel="icon" type="image/svg+xml" href="/favicon.svg" /> */}
 			</head>
 			<body className="flex h-full flex-col justify-between bg-background text-foreground">
-				<header className="container mx-auto py-6">
-					<nav className="flex justify-between">
-						<Link to="/">
-							<div className="font-light">epic</div>
-							<div className="font-bold">notes</div>
-						</Link>
-					</nav>
-				</header>
-
-				<div className="flex-1">
-					<Outlet />
-				</div>
-
-				<div className="container mx-auto flex justify-between">
-					<Link to="/">
-						<div className="font-light">epic</div>
-						<div className="font-bold">notes</div>
-					</Link>
-					<p>Built with ♥️ by {data.username}</p>
-				</div>
-				<div className="h-5" />
+				{children}
 				<Scripts />
 				{/* <KCDShop /> */}
 				<EpicShop />
 				<LiveReload />
 				<ScrollRestoration />
-				<script
-					dangerouslySetInnerHTML={{
-						__html: `window.ENV = ${JSON.stringify(data.ENV)}`,
-					}}
-				/>
 			</body>
 		</html>
 	)
@@ -129,4 +140,12 @@ export const meta: MetaFunction = () => {
 		{ title: 'Epic Notes' },
 		{ name: 'description', content: "Your own captain's log" },
 	]
+}
+
+export function ErrorBoundary() {
+	return (
+		<Document>
+			<GeneralErrorBoundary />
+		</Document>
+	)
 }
