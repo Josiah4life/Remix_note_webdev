@@ -8,6 +8,7 @@ import chalk from 'chalk'
 import closeWithGrace from 'close-with-grace'
 import compression from 'compression'
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import getPort, { portNumbers } from 'get-port'
 import morgan from 'morgan'
 
@@ -83,6 +84,38 @@ function getRequestHandler(build: ServerBuild): RequestHandler {
 	return createRequestHandler({ build, mode: MODE, getLoadContext })
 }
 
+const limitMultiple = process.env.TESTING ? 10_000 : 1
+
+const rateLimitDefault = {
+	windowMs: 60 * 1000,
+	limit: 1000 * limitMultiple,
+	standardHeaders: true,
+	legacyHeaders: false,
+}
+
+const strongestRateLimit = rateLimit({
+	...rateLimitDefault,
+	limit: 10 * limitMultiple,
+})
+
+const strongRateLimit = rateLimit({
+	...rateLimitDefault,
+	limit: 100 * limitMultiple,
+})
+
+const generalRateLimit = rateLimit(rateLimitDefault)
+app.use((req, res, next) => {
+	const strongPaths = ['/signup']
+	if (req.method !== 'GET' && req.method !== 'HEAD') {
+		if (strongPaths.some(p => req.path.includes(p))) {
+			return strongestRateLimit(req, res, next)
+		}
+		return strongRateLimit(req, res, next)
+	}
+
+	return generalRateLimit(req, res, next)
+})
+
 app.all(
 	'*',
 	process.env.NODE_ENV === 'development'
@@ -101,8 +134,8 @@ const server = app.listen(portToUse, () => {
 		desiredPort === portToUse
 			? desiredPort
 			: addy && typeof addy === 'object'
-			? addy.port
-			: 0
+				? addy.port
+				: 0
 
 	if (portUsed !== desiredPort) {
 		console.warn(

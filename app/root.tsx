@@ -1,6 +1,11 @@
 import os from 'node:os'
 import { cssBundleHref } from '@remix-run/css-bundle'
-import { json, type MetaFunction, type LinksFunction } from '@remix-run/node'
+import {
+	json,
+	type MetaFunction,
+	type LinksFunction,
+	type LoaderFunctionArgs,
+} from '@remix-run/node'
 import {
 	Link,
 	Links,
@@ -11,8 +16,11 @@ import {
 	ScrollRestoration,
 	useLoaderData,
 } from '@remix-run/react'
+import { AuthenticityTokenProvider } from 'remix-utils/csrf/react'
+import { HoneypotProvider } from 'remix-utils/honeypot/react'
 import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { getEnv } from '#app/utils/env.server.ts'
+import { honeypot } from '#app/utils/honeypot.server.ts'
 import faviconAssetUrl from './assets/favicon.svg'
 
 import { EpicShop } from './epicshop.tsx'
@@ -20,11 +28,7 @@ import { EpicShop } from './epicshop.tsx'
 import fontStylestlesheetUrl from './styles/font.css'
 import './styles/global.css'
 import tailwindStylesheeturl from './styles/tailwind.css'
-// 🐨 export a links function here that adds the favicon
-// 💰 It should have the following properties:
-// - rel: 'icon'
-// - type: 'image/svg+xml'
-// - href: '/favicon.svg'
+import { csrf } from './utils/csrf.server.ts'
 
 console.log(faviconAssetUrl)
 export function links(): ReturnType<LinksFunction> {
@@ -47,36 +51,18 @@ export function links(): ReturnType<LinksFunction> {
 	]
 }
 
-// export const links: LinksFunction = () => {
-// 	return [
-// 		{
-// 			rel: 'icon',
-// 			type: 'image/svg+xml',
-// 			href: faviconAssetUrl,
-// 		},
-// 		{
-// 			rel: 'stylesheet',
-// 			href: fontStylestlesheetUrl,
-// 		},
-// 		{
-// 			rel: 'stylesheet',
-// 			href: tailwindStylesheeturl,
-// 		},
-// 	]
-// }
-
-export async function loader() {
-	return json({ username: os.userInfo().username, ENV: getEnv() })
+export async function loader({ request }: LoaderFunctionArgs) {
+	const honeyProps = honeypot.getInputProps()
+	const [csrfToken, csrfCookieHeader] = await csrf.commitToken(request)
+	return json(
+		{ username: os.userInfo().username, ENV: getEnv(), honeyProps, csrfToken },
+		{
+			headers: csrfCookieHeader ? { 'set-cookie': csrfCookieHeader } : {},
+		},
+	)
 }
 
-// export async function loader() {
-// 	return json({
-// 		username: os.userInfo().username,
-// 		ENV: getEnv(),
-// 	})
-// }
-
-export default function App() {
+function App() {
 	const data = useLoaderData<typeof loader>()
 
 	return (
@@ -135,6 +121,18 @@ export function Document({ children }: { children: React.ReactNode }) {
 	)
 }
 
+export default function AppWithProviders() {
+	const data = useLoaderData<typeof loader>()
+
+	return (
+		<AuthenticityTokenProvider token={data.csrfToken}>
+			<HoneypotProvider {...data.honeyProps}>
+				<App />
+			</HoneypotProvider>
+		</AuthenticityTokenProvider>
+	)
+}
+
 export const meta: MetaFunction = () => {
 	return [
 		{ title: 'Epic Notes' },
@@ -145,7 +143,9 @@ export const meta: MetaFunction = () => {
 export function ErrorBoundary() {
 	return (
 		<Document>
-			<GeneralErrorBoundary />
+			<div className="flex-1">
+				<GeneralErrorBoundary />
+			</div>
 		</Document>
 	)
 }
