@@ -4,17 +4,19 @@ import {
 	type MetaFunction,
 } from '@remix-run/node'
 import { Form } from '@remix-run/react'
+import { AuthenticityTokenInput } from 'remix-utils/csrf/react'
 import { HoneypotInputs } from 'remix-utils/honeypot/react'
-
 import { Button } from '#app/components/ui/button.tsx'
 import { Input } from '#app/components/ui/input.tsx'
 import { Label } from '#app/components/ui/label.tsx'
+import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 
 export async function action({ request }: ActionFunctionArgs) {
 	const formData = await request.formData()
+	await validateCSRF(formData, request.headers)
 	checkHoneypot(formData)
-	// we'll implement signup later
+	// TODO: implement signup
 	return redirect('/')
 }
 
@@ -32,6 +34,7 @@ export default function SignupRoute() {
 					method="POST"
 					className="mx-auto flex min-w-[368px] max-w-sm flex-col gap-4"
 				>
+					<AuthenticityTokenInput />
 					<HoneypotInputs />
 					<div>
 						<Label htmlFor="email-input">Email</Label>

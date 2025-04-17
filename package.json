@@ -22,13 +22,14 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@conform-to/react": "^1.2.2",
-    "@conform-to/zod": "^1.2.2",
+    "@conform-to/react": "^0.9.0",
+    "@conform-to/zod": "^0.8.0-pre.0",
     "@epic-web/workshop-utils": "^5.10.1",
     "@mswjs/data": "^0.14.0",
     "@prisma/client": "^6.6.0",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-slot": "^1.1.2",
+    "@radix-ui/react-tooltip": "^1.2.0",
     "@remix-run/express": "^2.3.0",
     "@remix-run/node": "^2.3.0",
     "@remix-run/react": "^2.3.0",
@@ -40,6 +41,7 @@
     "clsx": "^2.1.1",
     "compression": "^1.7.4",
     "crypto-js": "^4.2.0",
+    "enforce-unique": "^1.3.0",
     "express": "^4.18.2",
     "express-rate-limit": "^7.5.0",
     "get-port": "^7.0.0",
@@ -52,11 +54,13 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "remix-utils": "^7.7.0",
+    "spin-delay": "^2.0.1",
     "tailwind-merge": "^1.14.0",
     "tailwindcss": "^3.3.3",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.7.0",
     "@playwright/test": "^1.39.0",
     "@remix-run/dev": "^2.3.0",
     "@remix-run/eslint-config": "^2.3.0",
@@ -88,5 +92,8 @@
     "/public/build",
     "/playwright-report",
     "/server-build"
-  ]
+  ],
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
+  }
 }

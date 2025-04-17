@@ -1,60 +1,46 @@
 import {
-	type ActionFunctionArgs,
 	json,
-	type LoaderFunctionArgs,
-	type MetaFunction,
 	redirect,
+	type ActionFunctionArgs,
+	type LoaderFunctionArgs,
 } from '@remix-run/node'
-import { Form, Link, useLoaderData } from '@remix-run/react'
-// 🐨 get the db utility using:
+import { Form, Link, useLoaderData, type MetaFunction } from '@remix-run/react'
 import { AuthenticityTokenInput } from 'remix-utils/csrf/react'
-import { CSRFError } from 'remix-utils/csrf/server'
 import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { floatingToolbarClassName } from '#app/components/floating-toolbar.tsx'
 import { Button } from '#app/components/ui/button.tsx'
-import { csrf } from '#app/utils/csrf.server.ts'
-import { db } from '#app/utils/db.server.ts'
-import { invariantResponse } from '#app/utils/misc.tsx'
+import { validateCSRF } from '#app/utils/csrf.server.ts'
+import { prisma } from '#app/utils/db.server.ts'
+import { getNoteImgSrc, invariantResponse } from '#app/utils/misc.tsx'
 import { type loader as notesLoader } from './notes.tsx'
 
 export async function loader({ params }: LoaderFunctionArgs) {
-	const { noteId } = params
-	const note = db.note.findFirst({
-		where: {
-			id: { equals: noteId },
+	const note = await prisma.note.findFirst({
+		select: {
+			title: true,
+			content: true,
+			images: {
+				select: { id: true, altText: true },
+			},
 		},
+		where: { id: params.noteId },
 	})
 
 	invariantResponse(note, 'Note not found', { status: 404 })
 
-	return json({
-		note: {
-			title: note.title,
-			content: note.content,
-			images: note.images.map(i => ({ id: i.id, altText: i.altText })),
-		},
-	})
+	return json({ note })
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
+	invariantResponse(params.noteId, 'noteId param is required')
+
 	const formData = await request.formData()
+	await validateCSRF(formData, request.headers)
 	const intent = formData.get('intent')
-
-	try {
-		csrf.validate(formData, request.headers)
-	} catch (error) {
-		if (error instanceof CSRFError) {
-			throw new Response('Invalid CSRF token', { status: 403 })
-		}
-
-		throw error
-	}
 
 	invariantResponse(intent === 'delete', 'Invalid intent')
 
-	db.note.delete({ where: { id: { equals: params.noteId } } })
-
-	// Redirect after deletion
+	await prisma.note.delete({ where: { id: params.noteId } })
 	return redirect(`/users/${params.username}/notes`)
 }
 
@@ -63,15 +49,14 @@ export default function NoteRoute() {
 
 	return (
 		<div className="absolute inset-0 flex flex-col px-10">
-			<h2 className="mb-2 pt-12 text-h2 lg:mb-6">{data.note?.title}</h2>
-
+			<h2 className="mb-2 pt-12 text-h2 lg:mb-6">{data.note.title}</h2>
 			<div className="overflow-y-auto pb-24">
 				<ul className="flex flex-wrap gap-5 py-5">
 					{data.note.images.map(image => (
 						<li key={image.id}>
-							<a href={`/resources/images/${image.id}`}>
+							<a href={getNoteImgSrc(image.id)}>
 								<img
-									src={`/resources/images/${image.id}`}
+									src={getNoteImgSrc(image.id)}
 									alt={image.altText ?? ''}
 									className="h-32 w-32 rounded-lg object-cover"
 								/>
@@ -80,11 +65,11 @@ export default function NoteRoute() {
 					))}
 				</ul>
 				<p className="whitespace-break-spaces text-sm md:text-lg">
-					{data.note?.content}
+					{data.note.content}
 				</p>
 			</div>
 			<div className={floatingToolbarClassName}>
-				<Form method="POST">
+				<Form method="post">
 					<AuthenticityTokenInput />
 					<Button
 						type="submit"
@@ -107,19 +92,17 @@ export const meta: MetaFunction<
 	typeof loader,
 	{ 'routes/users+/$username_+/notes': typeof notesLoader }
 > = ({ data, params, matches }) => {
-	const noteMatch = matches.find(
+	const notesMatch = matches.find(
 		m => m.id === 'routes/users+/$username_+/notes',
 	)
-
-	const displayName = noteMatch?.data.owner.name ?? params.username
+	const displayName = notesMatch?.data?.owner.name ?? params.username
 	const noteTitle = data?.note.title ?? 'Note'
-
 	const noteContentsSummary =
 		data && data.note.content.length > 100
-			? data.note.content.slice(0, 97) + '...'
-			: data?.note.content || 'No content'
+			? data?.note.content.slice(0, 97) + '...'
+			: 'No content'
 	return [
-		{ title: `${noteTitle} | ${displayName}'s Notes | Epic Notes ` },
+		{ title: `${noteTitle} | ${displayName}'s Notes | Epic Notes` },
 		{
 			name: 'description',
 			content: noteContentsSummary,
@@ -131,9 +114,9 @@ export function ErrorBoundary() {
 	return (
 		<GeneralErrorBoundary
 			statusHandlers={{
-				404: ({ params }) => {
-					return <p> No note with the id "{params.noteId}" exits</p>
-				},
+				404: ({ params }) => (
+					<p>No note with the id "{params.noteId}" exists</p>
+				),
 			}}
 		/>
 	)

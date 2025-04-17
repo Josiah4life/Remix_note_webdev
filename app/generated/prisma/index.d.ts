@@ -1346,7 +1346,7 @@ export namespace Prisma {
     updatedAt?: boolean
     notes?: boolean | User$notesArgs<ExtArgs>
     image?: boolean | User$imageArgs<ExtArgs>
-    NoteImage?: boolean | User$NoteImageArgs<ExtArgs>
+    images?: boolean | User$imagesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -1381,7 +1381,7 @@ export namespace Prisma {
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     notes?: boolean | User$notesArgs<ExtArgs>
     image?: boolean | User$imageArgs<ExtArgs>
-    NoteImage?: boolean | User$NoteImageArgs<ExtArgs>
+    images?: boolean | User$imagesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -1392,7 +1392,7 @@ export namespace Prisma {
     objects: {
       notes: Prisma.$NotePayload<ExtArgs>[]
       image: Prisma.$UserImagePayload<ExtArgs> | null
-      NoteImage: Prisma.$NoteImagePayload<ExtArgs> | null
+      images: Prisma.$NoteImagePayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -1797,7 +1797,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     notes<T extends User$notesArgs<ExtArgs> = {}>(args?: Subset<T, User$notesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$NotePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     image<T extends User$imageArgs<ExtArgs> = {}>(args?: Subset<T, User$imageArgs<ExtArgs>>): Prisma__UserImageClient<$Result.GetResult<Prisma.$UserImagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-    NoteImage<T extends User$NoteImageArgs<ExtArgs> = {}>(args?: Subset<T, User$NoteImageArgs<ExtArgs>>): Prisma__NoteImageClient<$Result.GetResult<Prisma.$NoteImagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    images<T extends User$imagesArgs<ExtArgs> = {}>(args?: Subset<T, User$imagesArgs<ExtArgs>>): Prisma__NoteImageClient<$Result.GetResult<Prisma.$NoteImagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2262,9 +2262,9 @@ export namespace Prisma {
   }
 
   /**
-   * User.NoteImage
+   * User.images
    */
-  export type User$NoteImageArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type User$imagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
      * Select specific fields to fetch from the NoteImage
      */
@@ -5657,7 +5657,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"User"> | Date | string
     notes?: NoteListRelationFilter
     image?: XOR<UserImageNullableScalarRelationFilter, UserImageWhereInput> | null
-    NoteImage?: XOR<NoteImageNullableScalarRelationFilter, NoteImageWhereInput> | null
+    images?: XOR<NoteImageNullableScalarRelationFilter, NoteImageWhereInput> | null
   }
 
   export type UserOrderByWithRelationInput = {
@@ -5669,7 +5669,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     notes?: NoteOrderByRelationAggregateInput
     image?: UserImageOrderByWithRelationInput
-    NoteImage?: NoteImageOrderByWithRelationInput
+    images?: NoteImageOrderByWithRelationInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -5684,7 +5684,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"User"> | Date | string
     notes?: NoteListRelationFilter
     image?: XOR<UserImageNullableScalarRelationFilter, UserImageWhereInput> | null
-    NoteImage?: XOR<NoteImageNullableScalarRelationFilter, NoteImageWhereInput> | null
+    images?: XOR<NoteImageNullableScalarRelationFilter, NoteImageWhereInput> | null
   }, "id" | "email" | "username">
 
   export type UserOrderByWithAggregationInput = {
@@ -5910,7 +5910,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     notes?: NoteCreateNestedManyWithoutOwnerInput
     image?: UserImageCreateNestedOneWithoutUserInput
-    NoteImage?: NoteImageCreateNestedOneWithoutUserInput
+    images?: NoteImageCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -5922,7 +5922,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     notes?: NoteUncheckedCreateNestedManyWithoutOwnerInput
     image?: UserImageUncheckedCreateNestedOneWithoutUserInput
-    NoteImage?: NoteImageUncheckedCreateNestedOneWithoutUserInput
+    images?: NoteImageUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -5934,7 +5934,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NoteUpdateManyWithoutOwnerNestedInput
     image?: UserImageUpdateOneWithoutUserNestedInput
-    NoteImage?: NoteImageUpdateOneWithoutUserNestedInput
+    images?: NoteImageUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -5946,7 +5946,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NoteUncheckedUpdateManyWithoutOwnerNestedInput
     image?: UserImageUncheckedUpdateOneWithoutUserNestedInput
-    NoteImage?: NoteImageUncheckedUpdateOneWithoutUserNestedInput
+    images?: NoteImageUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -6114,7 +6114,7 @@ export namespace Prisma {
     blob: Uint8Array
     createdAt?: Date | string
     updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutNoteImageInput
+    user: UserCreateNestedOneWithoutImagesInput
   }
 
   export type NoteImageUncheckedCreateInput = {
@@ -6134,7 +6134,7 @@ export namespace Prisma {
     blob?: BytesFieldUpdateOperationsInput | Uint8Array
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutNoteImageNestedInput
+    user?: UserUpdateOneRequiredWithoutImagesNestedInput
   }
 
   export type NoteImageUncheckedUpdateInput = {
@@ -6574,18 +6574,18 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutImageInput, UserUpdateWithoutImageInput>, UserUncheckedUpdateWithoutImageInput>
   }
 
-  export type UserCreateNestedOneWithoutNoteImageInput = {
-    create?: XOR<UserCreateWithoutNoteImageInput, UserUncheckedCreateWithoutNoteImageInput>
-    connectOrCreate?: UserCreateOrConnectWithoutNoteImageInput
+  export type UserCreateNestedOneWithoutImagesInput = {
+    create?: XOR<UserCreateWithoutImagesInput, UserUncheckedCreateWithoutImagesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutImagesInput
     connect?: UserWhereUniqueInput
   }
 
-  export type UserUpdateOneRequiredWithoutNoteImageNestedInput = {
-    create?: XOR<UserCreateWithoutNoteImageInput, UserUncheckedCreateWithoutNoteImageInput>
-    connectOrCreate?: UserCreateOrConnectWithoutNoteImageInput
-    upsert?: UserUpsertWithoutNoteImageInput
+  export type UserUpdateOneRequiredWithoutImagesNestedInput = {
+    create?: XOR<UserCreateWithoutImagesInput, UserUncheckedCreateWithoutImagesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutImagesInput
+    upsert?: UserUpsertWithoutImagesInput
     connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutNoteImageInput, UserUpdateWithoutNoteImageInput>, UserUncheckedUpdateWithoutNoteImageInput>
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutImagesInput, UserUpdateWithoutImagesInput>, UserUncheckedUpdateWithoutImagesInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -6879,7 +6879,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     image?: UserImageCreateNestedOneWithoutUserInput
-    NoteImage?: NoteImageCreateNestedOneWithoutUserInput
+    images?: NoteImageCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutNotesInput = {
@@ -6890,7 +6890,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     image?: UserImageUncheckedCreateNestedOneWithoutUserInput
-    NoteImage?: NoteImageUncheckedCreateNestedOneWithoutUserInput
+    images?: NoteImageUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutNotesInput = {
@@ -6917,7 +6917,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     image?: UserImageUpdateOneWithoutUserNestedInput
-    NoteImage?: NoteImageUpdateOneWithoutUserNestedInput
+    images?: NoteImageUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutNotesInput = {
@@ -6928,7 +6928,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     image?: UserImageUncheckedUpdateOneWithoutUserNestedInput
-    NoteImage?: NoteImageUncheckedUpdateOneWithoutUserNestedInput
+    images?: NoteImageUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutImageInput = {
@@ -6939,7 +6939,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     notes?: NoteCreateNestedManyWithoutOwnerInput
-    NoteImage?: NoteImageCreateNestedOneWithoutUserInput
+    images?: NoteImageCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutImageInput = {
@@ -6950,7 +6950,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     notes?: NoteUncheckedCreateNestedManyWithoutOwnerInput
-    NoteImage?: NoteImageUncheckedCreateNestedOneWithoutUserInput
+    images?: NoteImageUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutImageInput = {
@@ -6977,7 +6977,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NoteUpdateManyWithoutOwnerNestedInput
-    NoteImage?: NoteImageUpdateOneWithoutUserNestedInput
+    images?: NoteImageUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutImageInput = {
@@ -6988,10 +6988,10 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     notes?: NoteUncheckedUpdateManyWithoutOwnerNestedInput
-    NoteImage?: NoteImageUncheckedUpdateOneWithoutUserNestedInput
+    images?: NoteImageUncheckedUpdateOneWithoutUserNestedInput
   }
 
-  export type UserCreateWithoutNoteImageInput = {
+  export type UserCreateWithoutImagesInput = {
     id?: string
     email: string
     username: string
@@ -7002,7 +7002,7 @@ export namespace Prisma {
     image?: UserImageCreateNestedOneWithoutUserInput
   }
 
-  export type UserUncheckedCreateWithoutNoteImageInput = {
+  export type UserUncheckedCreateWithoutImagesInput = {
     id?: string
     email: string
     username: string
@@ -7013,23 +7013,23 @@ export namespace Prisma {
     image?: UserImageUncheckedCreateNestedOneWithoutUserInput
   }
 
-  export type UserCreateOrConnectWithoutNoteImageInput = {
+  export type UserCreateOrConnectWithoutImagesInput = {
     where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutNoteImageInput, UserUncheckedCreateWithoutNoteImageInput>
+    create: XOR<UserCreateWithoutImagesInput, UserUncheckedCreateWithoutImagesInput>
   }
 
-  export type UserUpsertWithoutNoteImageInput = {
-    update: XOR<UserUpdateWithoutNoteImageInput, UserUncheckedUpdateWithoutNoteImageInput>
-    create: XOR<UserCreateWithoutNoteImageInput, UserUncheckedCreateWithoutNoteImageInput>
+  export type UserUpsertWithoutImagesInput = {
+    update: XOR<UserUpdateWithoutImagesInput, UserUncheckedUpdateWithoutImagesInput>
+    create: XOR<UserCreateWithoutImagesInput, UserUncheckedCreateWithoutImagesInput>
     where?: UserWhereInput
   }
 
-  export type UserUpdateToOneWithWhereWithoutNoteImageInput = {
+  export type UserUpdateToOneWithWhereWithoutImagesInput = {
     where?: UserWhereInput
-    data: XOR<UserUpdateWithoutNoteImageInput, UserUncheckedUpdateWithoutNoteImageInput>
+    data: XOR<UserUpdateWithoutImagesInput, UserUncheckedUpdateWithoutImagesInput>
   }
 
-  export type UserUpdateWithoutNoteImageInput = {
+  export type UserUpdateWithoutImagesInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
@@ -7040,7 +7040,7 @@ export namespace Prisma {
     image?: UserImageUpdateOneWithoutUserNestedInput
   }
 
-  export type UserUncheckedUpdateWithoutNoteImageInput = {
+  export type UserUncheckedUpdateWithoutImagesInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string

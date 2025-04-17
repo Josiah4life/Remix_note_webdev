@@ -20,7 +20,7 @@ model User {
   updatedAt DateTime   @updatedAt
   notes     Note[]
   image     UserImage?
-  NoteImage NoteImage?
+  images    NoteImage?
 }
 
 model Note {
