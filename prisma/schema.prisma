@@ -38,7 +38,7 @@ model Note {
 
   // non-unique foreign key
   @@index([ownerId])
-  // this speeds up our user search query by a lot 
+  // this speeds up our user search query by a lot np
   @@index([ownerId, updatedAt])
 }
 
