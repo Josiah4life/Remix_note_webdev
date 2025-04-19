@@ -7,6 +7,7 @@ import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 	type LinksFunction,
+	redirect,
 } from '@remix-run/node'
 import {
 	Link,
@@ -22,10 +23,15 @@ import {
 	useMatches,
 	type MetaFunction,
 } from '@remix-run/react'
+import { useEffect } from 'react'
 import { AuthenticityTokenProvider } from 'remix-utils/csrf/react'
 import { HoneypotProvider } from 'remix-utils/honeypot/react'
+import { Toaster, toast as showToast } from 'sonner'
 import { z } from 'zod'
+import { prisma } from '#app/utils/db.server.ts'
 import { getTheme, setTheme } from '#app/utils/ThemeServer.ts'
+import { getToast } from '#app/utils/toast.server.ts'
+import { useOptionalUser } from '#app/utils/user.ts'
 import faviconAssetUrl from './assets/favicon.svg'
 import { GeneralErrorBoundary } from './components/error-boundary.tsx'
 import { ErrorList } from './components/forms.tsx'
@@ -39,7 +45,12 @@ import tailwindStylesheetUrl from './styles/tailwind.css'
 import { csrf } from './utils/csrf.server.ts'
 import { getEnv } from './utils/env.server.ts'
 import { honeypot } from './utils/honeypot.server.ts'
-import { invariantResponse } from './utils/misc.tsx'
+import {
+	combineHeaders,
+	getUserImgSrc,
+	invariantResponse,
+} from './utils/misc.tsx'
+import { sessionStorage } from './utils/session.server.ts'
 import { type Theme } from './utils/theme.server.ts'
 
 export const links: LinksFunction = () => {
@@ -54,16 +65,49 @@ export const links: LinksFunction = () => {
 export async function loader({ request }: LoaderFunctionArgs) {
 	const [csrfToken, csrfCookieHeader] = await csrf.commitToken(request)
 	const honeyProps = honeypot.getInputProps()
+	const { toast, headers: toastHeaders } = await getToast(request)
+	const cookieSession = await sessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+
+	const userId = cookieSession.get('userId')
+	const user = userId
+		? await prisma.user.findUnique({
+				select: {
+					id: true,
+					name: true,
+					username: true,
+					image: { select: { id: true } },
+				},
+				where: { id: userId },
+			})
+		: null
+
+	if (userId && !user) {
+		// something weird happened... The user is authenticated but we can't find
+		// them in the database. Maybe they were deleted? Let's log them out.
+		throw redirect('/', {
+			headers: {
+				'set-cookie': await sessionStorage.destroySession(cookieSession),
+			},
+		})
+	}
+
 	return json(
 		{
+			user,
 			username: os.userInfo().username,
 			theme: getTheme(request),
+			toast,
 			ENV: getEnv(),
 			csrfToken,
 			honeyProps,
 		},
 		{
-			headers: csrfCookieHeader ? { 'set-cookie': csrfCookieHeader } : {},
+			headers: combineHeaders(
+				csrfCookieHeader ? { 'set-cookie': csrfCookieHeader } : null,
+				toastHeaders,
+			),
 		},
 	)
 }
@@ -102,6 +146,7 @@ function Document({
 	children,
 	theme,
 	env,
+	isLoggedIn = false,
 }: {
 	children: React.ReactNode
 	theme?: Theme
@@ -122,6 +167,7 @@ function Document({
 						__html: `window.ENV = ${JSON.stringify(env)}`,
 					}}
 				/>
+				<Toaster closeButton position="top-center" />
 				<ScrollRestoration />
 				<Scripts />
 				<EpicShop />
@@ -135,6 +181,7 @@ function App() {
 	const data = useLoaderData<typeof loader>()
 	const theme = useTheme()
 	const matches = useMatches()
+	const user = useOptionalUser()
 	const isOnSearchPage = matches.find(m => m.id === 'routes/users+/index')
 	return (
 		<Document theme={theme} env={data.ENV}>
@@ -149,10 +196,31 @@ function App() {
 							<SearchBar status="idle" />
 						</div>
 					)}
+
 					<div className="flex items-center gap-10">
-						<Button asChild variant="default" size="sm">
-							<Link to="/login">Log In</Link>
-						</Button>
+						{user ? (
+							<div className="flex items-center gap-2">
+								<Button asChild variant="secondary">
+									<Link
+										to={`/users/${user.username}`}
+										className="flex items-center gap-2"
+									>
+										<img
+											className="h-8 w-8 rounded-full object-cover"
+											alt={user.name ?? user.username}
+											src={getUserImgSrc(user.image?.id)}
+										/>
+										<span className="hidden text-body-sm font-bold sm:block">
+											{user.name ?? user.username}
+										</span>
+									</Link>
+								</Button>
+							</div>
+						) : (
+							<Button asChild variant="default" size="sm">
+								<Link to="/login">Log In</Link>
+							</Button>
+						)}
 					</div>
 				</nav>
 			</header>
@@ -172,8 +240,24 @@ function App() {
 				</div>
 			</div>
 			<Spacer size="3xs" />
+			{data.toast ? <ShowToast toast={data.toast} /> : null}
 		</Document>
 	)
+}
+
+function ShowToast({ toast }: { toast: any }) {
+	const { id, type, title, description } = toast as {
+		id: string
+		type: 'success' | 'message'
+		title: string
+		description: string
+	}
+	useEffect(() => {
+		setTimeout(() => {
+			showToast[type](title, { id, description })
+		}, 0)
+	}, [description, id, title, type])
+	return null
 }
 
 export default function AppWithProviders() {

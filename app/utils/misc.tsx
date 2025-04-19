@@ -88,6 +88,22 @@ export function invariantResponse(
 }
 
 /**
+ * Combine multiple header objects into one (uses append so headers are not overridden)
+ */
+export function combineHeaders(
+	...headers: Array<ResponseInit['headers'] | null>
+) {
+	const combined = new Headers()
+	for (const header of headers) {
+		if (!header) continue
+		for (const [key, value] of new Headers(header).entries()) {
+			combined.append(key, value)
+		}
+	}
+	return combined
+}
+
+/**
  * Returns true if the current navigation is submitting the current route's
  * form. Defaults to the current route's form action and method POST.
  *

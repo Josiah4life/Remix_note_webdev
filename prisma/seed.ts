@@ -1,37 +1,10 @@
 import fs from 'node:fs'
 import { faker } from '@faker-js/faker'
 import { PrismaClient } from '@prisma/client'
-import { UniqueEnforcer } from 'enforce-unique'
 import { promiseHash } from 'remix-utils/promise'
+import { createPassword, createUser } from '#tests/db-utils.ts'
 
 const prisma = new PrismaClient()
-
-const uniqueUsernameEnforcer = new UniqueEnforcer()
-
-export function createUser() {
-	const firstName = faker.person.firstName()
-	const lastName = faker.person.lastName()
-
-	const username = uniqueUsernameEnforcer
-		.enforce(() => {
-			return (
-				faker.string.alphanumeric({ length: 2 }) +
-				'_' +
-				faker.internet.userName({
-					firstName: firstName.toLowerCase(),
-					lastName: lastName.toLowerCase(),
-				})
-			)
-		})
-		.slice(0, 20)
-		.toLowerCase()
-		.replace(/[^a-z0-9_]/g, '_')
-	return {
-		username,
-		name: `${firstName} ${lastName}`,
-		email: `${username}@example.com`,
-	}
-}
 
 async function img({
 	altText,
@@ -55,7 +28,7 @@ async function seed() {
 	await prisma.user.deleteMany()
 	console.timeEnd('🧹 Cleaned up the database...')
 
-	const totalUsers = 5
+	const totalUsers = 3
 	console.time(`👤 Created ${totalUsers} users...`)
 	const noteImages = await Promise.all([
 		img({
@@ -108,17 +81,19 @@ async function seed() {
 	)
 
 	for (let index = 0; index < totalUsers; index++) {
+		const userData = createUser()
 		await prisma.user
 			.create({
 				select: { id: true },
 				data: {
-					...createUser(),
+					...userData,
+					password: { create: createPassword(userData.username) },
 					image: { create: userImages[index % 10] },
 					notes: {
 						create: Array.from({
-							length: faker.number.int({ min: 1, max: 3 }),
+							length: faker.number.int({ min: 2, max: 4 }),
 						}).map(() => ({
-							title: faker.lorem.sentence(),
+							title: faker.lorem.sentence().slice(0, 20).trim(),
 							content: faker.lorem.paragraphs(),
 							images: {
 								create: Array.from({
@@ -139,7 +114,7 @@ async function seed() {
 	}
 	console.timeEnd(`👤 Created ${totalUsers} users...`)
 
-	console.time(`🐨 Created user "kody"`)
+	console.time(`🐨 Created admin user "kody"`)
 
 	const kodyImages = await promiseHash({
 		kodyUser: img({ filepath: './tests/fixtures/images/user/kody.png' }),
@@ -177,10 +152,12 @@ async function seed() {
 	await prisma.user.create({
 		select: { id: true },
 		data: {
+			id: 'clm7vpwdy001ix76hu0czjiqs',
 			email: 'kody@kcd.dev',
 			username: 'kody',
 			name: 'Kody',
 			image: { create: kodyImages.kodyUser },
+			password: { create: createPassword('kodylovesyou') },
 			notes: {
 				create: [
 					{
@@ -282,7 +259,7 @@ async function seed() {
 			},
 		},
 	})
-	console.timeEnd(`🐨 Created user "kody"`)
+	console.timeEnd(`🐨 Created admin user "kody"`)
 
 	console.timeEnd(`🌱 Database has been seeded`)
 }
