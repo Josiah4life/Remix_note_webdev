@@ -2,6 +2,7 @@ import { conform, useForm } from '@conform-to/react'
 import { getFieldsetConstraint, parse } from '@conform-to/zod'
 import {
 	json,
+	type LoaderFunctionArgs,
 	redirect,
 	type ActionFunctionArgs,
 	type MetaFunction,
@@ -13,7 +14,11 @@ import { z } from 'zod'
 import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
-import { bcrypt, getSessionExpirationDate } from '#app/utils/auth.server.ts'
+import {
+	bcrypt,
+	getSessionExpirationDate,
+	requireAnonymous,
+} from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
@@ -49,7 +54,13 @@ const SignupFormSchema = z
 		}
 	})
 
+export async function loader({ request }: LoaderFunctionArgs) {
+	await requireAnonymous(request)
+	return json({})
+}
+
 export async function action({ request }: ActionFunctionArgs) {
+	await requireAnonymous(request)
 	const formData = await request.formData()
 	await validateCSRF(formData, request.headers)
 	checkHoneypot(formData)

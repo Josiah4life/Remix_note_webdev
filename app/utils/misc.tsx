@@ -1,6 +1,6 @@
 import { useFormAction, useNavigation } from '@remix-run/react'
 import { clsx, type ClassValue } from 'clsx'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSpinDelay } from 'spin-delay'
 import { twMerge } from 'tailwind-merge'
 import userFallback from '#app/assets/user.png'
@@ -101,6 +101,66 @@ export function combineHeaders(
 		}
 	}
 	return combined
+}
+
+export function combineResponseInits(
+	...responseInits: Array<ResponseInit | undefined>
+) {
+	let combined: ResponseInit = {}
+	for (const responseInit of responseInits) {
+		combined = {
+			...responseInit,
+			headers: combineHeaders(combined.headers, responseInit?.headers),
+		}
+	}
+	return combined
+}
+
+function callAll<Args extends Array<unknown>>(
+	...fns: Array<((...args: Args) => unknown) | undefined>
+) {
+	return (...args: Args) => fns.forEach(fn => fn?.(...args))
+}
+
+/**
+ * Use this hook with a button and it will make it so the first click sets a
+ * `doubleCheck` state to true, and the second click will actually trigger the
+ * `onClick` handler. This allows you to have a button that can be like a
+ * "are you sure?" experience for the user before doing destructive operations.
+ */
+export function useDoubleCheck() {
+	const [doubleCheck, setDoubleCheck] = useState(false)
+
+	function getButtonProps(
+		props?: React.ButtonHTMLAttributes<HTMLButtonElement>,
+	) {
+		const onBlur: React.ButtonHTMLAttributes<HTMLButtonElement>['onBlur'] =
+			() => setDoubleCheck(false)
+
+		const onClick: React.ButtonHTMLAttributes<HTMLButtonElement>['onClick'] =
+			doubleCheck
+				? undefined
+				: e => {
+						e.preventDefault()
+						setDoubleCheck(true)
+					}
+
+		const onKeyUp: React.ButtonHTMLAttributes<HTMLButtonElement>['onKeyUp'] =
+			e => {
+				if (e.key === 'Escape') {
+					setDoubleCheck(false)
+				}
+			}
+
+		return {
+			...props,
+			onBlur: callAll(onBlur, props?.onBlur),
+			onClick: callAll(onClick, props?.onClick),
+			onKeyUp: callAll(onKeyUp, props?.onKeyUp),
+		}
+	}
+
+	return { doubleCheck, getButtonProps }
 }
 
 /**
