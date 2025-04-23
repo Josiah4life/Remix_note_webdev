@@ -21,6 +21,7 @@ import { ErrorList } from '#app/components/forms.tsx'
 import { Button } from '#app/components/ui/button.tsx'
 import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
+import { requireUser } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import {
@@ -28,6 +29,10 @@ import {
 	invariantResponse,
 	useIsPending,
 } from '#app/utils/misc.tsx'
+import {
+	requireUserWithPermission,
+	userHasPermission,
+} from '#app/utils/permissions.ts'
 import { redirectWithToast } from '#app/utils/toast.server.ts'
 
 import { useOptionalUser } from '#app/utils/user.ts'
@@ -67,6 +72,7 @@ const DeleteFormSchema = z.object({
 })
 
 export async function action({ request, params }: ActionFunctionArgs) {
+	const user = await requireUser(request)
 	const formData = await request.formData()
 	await validateCSRF(formData, request.headers)
 	const submission = parse(formData, {
@@ -82,12 +88,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
 	const { noteId } = submission.value
 
 	const note = await prisma.note.findFirst({
-		select: { id: true, owner: { select: { username: true } } },
+		select: { id: true, ownerId: true, owner: { select: { username: true } } },
 		where: { id: noteId, owner: { username: params.username } },
 	})
 	invariantResponse(note, 'Not found', { status: 404 })
 
+	const isOwner = note.ownerId === user.id
+
+	await requireUserWithPermission(
+		request,
+		isOwner ? `delete:note:own` : `delete:note:any`,
+	)
+
 	await prisma.note.delete({ where: { id: note.id } })
+
 	throw await redirectWithToast(`/users/${note.owner.username}/notes`, {
 		type: 'success',
 		title: 'Success',
@@ -98,11 +112,16 @@ export default function NoteRoute() {
 	const data = useLoaderData<typeof loader>()
 	const user = useOptionalUser()
 	const isOwner = user?.id === data.note.ownerId
+	const canDelete = userHasPermission(
+		user,
+		isOwner ? `delete:note:own` : `delete:note:any`,
+	)
+	const displayBar = canDelete || isOwner
 
 	return (
 		<div className="absolute inset-0 flex flex-col px-10">
 			<h2 className="mb-2 pt-12 text-h2 lg:mb-6">{data.note.title}</h2>
-			<div className={`${isOwner ? 'pb-24' : 'pb-12'} overflow-y-auto`}>
+			<div className={`${displayBar ? 'pb-24' : 'pb-12'} overflow-y-auto`}>
 				<ul className="flex flex-wrap gap-5 py-5">
 					{data.note.images.map(image => (
 						<li key={image.id}>
@@ -120,7 +139,7 @@ export default function NoteRoute() {
 					{data.note.content}
 				</p>
 			</div>
-			{isOwner ? (
+			{displayBar ? (
 				<div className={floatingToolbarClassName}>
 					<span className="text-sm text-foreground/90 max-[524px]:hidden">
 						<Icon name="clock" className="scale-125">
@@ -206,6 +225,7 @@ export function ErrorBoundary() {
 	return (
 		<GeneralErrorBoundary
 			statusHandlers={{
+				403: () => <p>You are not allowed to do that</p>,
 				404: ({ params }) => (
 					<p>No note with the id "{params.noteId}" exists</p>
 				),

@@ -3,25 +3,26 @@ import { getFieldsetConstraint, parse } from '@conform-to/zod'
 import {
 	json,
 	type LoaderFunctionArgs,
-	redirect,
 	type ActionFunctionArgs,
 	type MetaFunction,
+	redirect,
 } from '@remix-run/node'
-import { Form, Link, useActionData } from '@remix-run/react'
+import { Form, Link, useActionData, useSearchParams } from '@remix-run/react'
 import { AuthenticityTokenInput } from 'remix-utils/csrf/react'
 import { HoneypotInputs } from 'remix-utils/honeypot/react'
+import { safeRedirect } from 'remix-utils/safe-redirect'
 import { z } from 'zod'
 import { GeneralErrorBoundary } from '#app/components/error-boundary.tsx'
 import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import {
-	bcrypt,
 	getSessionExpirationDate,
+	login,
 	requireAnonymous,
+	sessionKey,
 } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
-import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
 import { useIsPending } from '#app/utils/misc.tsx'
 import { sessionStorage } from '#app/utils/session.server.ts'
@@ -30,6 +31,7 @@ import { PasswordSchema, UsernameSchema } from '#app/utils/user-validation.ts'
 const LoginFormSchema = z.object({
 	username: UsernameSchema,
 	password: PasswordSchema,
+	redirectTo: z.string().optional(),
 	remember: z.boolean().optional(),
 })
 
@@ -46,13 +48,11 @@ export async function action({ request }: ActionFunctionArgs) {
 	const submission = await parse(formData, {
 		schema: intent =>
 			LoginFormSchema.transform(async (data, ctx) => {
-				if (intent !== 'submit') return { ...data, user: null }
+				if (intent !== 'submit') return { ...data, session: null }
 
-				const userWithPassword = await prisma.user.findUnique({
-					select: { id: true, password: { select: { hash: true } } },
-					where: { username: data.username },
-				})
-				if (!userWithPassword || !userWithPassword.password) {
+				const session = await login(data)
+
+				if (!session) {
 					ctx.addIssue({
 						code: 'custom',
 						message: 'Invalid username or password',
@@ -60,20 +60,7 @@ export async function action({ request }: ActionFunctionArgs) {
 					return z.NEVER
 				}
 
-				const isValid = await bcrypt.compare(
-					data.password,
-					userWithPassword.password.hash,
-				)
-
-				if (!isValid) {
-					ctx.addIssue({
-						code: 'custom',
-						message: 'Invalid username or password',
-					})
-					return z.NEVER
-				}
-
-				return { ...data, user: { id: userWithPassword.id } }
+				return { ...data, session }
 			}),
 		async: true,
 	})
@@ -85,18 +72,19 @@ export async function action({ request }: ActionFunctionArgs) {
 		delete submission.value?.password
 		return json({ status: 'idle', submission } as const)
 	}
-	if (!submission.value?.user) {
+	if (!submission.value?.session) {
 		return json({ status: 'error', submission } as const, { status: 400 })
 	}
 
-	const { user, remember } = submission.value
+	const { session, remember, redirectTo } = submission.value
 
 	const cookieSession = await sessionStorage.getSession(
 		request.headers.get('cookie'),
 	)
-	cookieSession.set('userId', user.id)
 
-	return redirect('/', {
+	cookieSession.set(sessionKey, session.id)
+
+	return redirect(safeRedirect(redirectTo), {
 		headers: {
 			'set-cookie': await sessionStorage.commitSession(cookieSession, {
 				expires: remember ? getSessionExpirationDate() : undefined,
@@ -108,10 +96,13 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function LoginPage() {
 	const actionData = useActionData<typeof action>()
 	const isPending = useIsPending()
+	const [searchParams] = useSearchParams()
+	const redirectTo = searchParams.get('redirectTo')
 
 	const [form, fields] = useForm({
 		id: 'login-form',
 		constraint: getFieldsetConstraint(LoginFormSchema),
+		defaultValue: { redirectTo },
 		lastSubmission: actionData?.submission,
 		onValidate({ formData }) {
 			return parse(formData, { schema: LoginFormSchema })
@@ -174,6 +165,10 @@ export default function LoginPage() {
 								</div>
 							</div>
 
+							<input
+								{...conform.input(fields.redirectTo, { type: 'hidden' })}
+							/>
+
 							<ErrorList errors={form.errors} id={form.errorId} />
 
 							<div className="flex items-center justify-between gap-6 pt-3">
@@ -191,7 +186,15 @@ export default function LoginPage() {
 						</Form>
 						<div className="flex items-center justify-center gap-2 pt-6">
 							<span className="text-muted-foreground">New here?</span>
-							<Link to="/signup">Create an account</Link>
+							<Link
+								to={
+									redirectTo
+										? `/signup?redirectTo=${encodeURIComponent(redirectTo)}`
+										: '/signup'
+								}
+							>
+								Create an account
+							</Link>
 						</div>
 					</div>
 				</div>

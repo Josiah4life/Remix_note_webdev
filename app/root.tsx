@@ -7,7 +7,6 @@ import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 	type LinksFunction,
-	redirect,
 } from '@remix-run/node'
 import {
 	Link,
@@ -29,7 +28,9 @@ import { AuthenticityTokenProvider } from 'remix-utils/csrf/react'
 import { HoneypotProvider } from 'remix-utils/honeypot/react'
 import { Toaster, toast as showToast } from 'sonner'
 import { z } from 'zod'
+import { getUserId } from '#app/utils/auth.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
+import { userHasRole } from '#app/utils/permissions.ts'
 import { getTheme, setTheme } from '#app/utils/ThemeServer.ts'
 import { getToast } from '#app/utils/toast.server.ts'
 import { useOptionalUser } from '#app/utils/user.ts'
@@ -56,7 +57,7 @@ import {
 	getUserImgSrc,
 	invariantResponse,
 } from './utils/misc.tsx'
-import { sessionStorage } from './utils/session.server.ts'
+
 import { type Theme } from './utils/theme.server.ts'
 
 export const links: LinksFunction = () => {
@@ -72,32 +73,30 @@ export async function loader({ request }: LoaderFunctionArgs) {
 	const [csrfToken, csrfCookieHeader] = await csrf.commitToken(request)
 	const honeyProps = honeypot.getInputProps()
 	const { toast, headers: toastHeaders } = await getToast(request)
-	const cookieSession = await sessionStorage.getSession(
-		request.headers.get('cookie'),
-	)
-
-	const userId = cookieSession.get('userId')
+	const userId = await getUserId(request)
 	const user = userId
-		? await prisma.user.findUnique({
+		? await prisma.user.findUniqueOrThrow({
 				select: {
 					id: true,
 					name: true,
 					username: true,
 					image: { select: { id: true } },
+					roles: {
+						select: {
+							name: true,
+							permissions: {
+								select: {
+									action: true,
+									entity: true,
+									access: true,
+								},
+							},
+						},
+					},
 				},
 				where: { id: userId },
 			})
 		: null
-
-	if (userId && !user) {
-		// something weird happened... The user is authenticated but we can't find
-		// them in the database. Maybe they were deleted? Let's log them out.
-		throw redirect('/', {
-			headers: {
-				'set-cookie': await sessionStorage.destroySession(cookieSession),
-			},
-		})
-	}
 
 	return json(
 		{
@@ -214,7 +213,7 @@ function Document({
 	children,
 	theme,
 	env,
-	isLoggedIn = false,
+	// isLoggedIn = false,
 }: {
 	children: React.ReactNode
 	theme?: Theme
@@ -253,6 +252,7 @@ function App() {
 	const matches = useMatches()
 	const user = useOptionalUser()
 	const isOnSearchPage = matches.find(m => m.id === 'routes/users+/index')
+	const userIsAdmin = userHasRole(user, 'admin')
 	return (
 		<Document isLoggedIn={Boolean(user)} theme={theme} env={data.ENV}>
 			<header className="container px-6 py-4 sm:px-8 sm:py-6">
@@ -285,6 +285,15 @@ function App() {
 										</span>
 									</Link>
 								</Button>
+								{userIsAdmin ? (
+									<Button asChild variant="secondary">
+										<Link to="/admin">
+											<Icon name="backpack">
+												<span className="hidden sm:block">Admin</span>
+											</Icon>
+										</Link>
+									</Button>
+								) : null}
 							</div>
 						) : (
 							<Button asChild variant="default" size="sm">

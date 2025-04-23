@@ -26,7 +26,54 @@ async function seed() {
 
 	console.time('🧹 Cleaned up the database...')
 	await prisma.user.deleteMany()
+	await prisma.role.deleteMany()
+	await prisma.permission.deleteMany()
+	await prisma.verification.deleteMany()
 	console.timeEnd('🧹 Cleaned up the database...')
+
+	const entities = ['user', 'note'] as const
+	const actions = ['create', 'read', 'update', 'delete'] as const
+	const accesses = ['own', 'any'] as const
+
+	for (const entity of entities) {
+		for (const action of actions) {
+			for (const access of accesses) {
+				await prisma.permission.create({
+					data: {
+						entity,
+						action,
+						access,
+					},
+				})
+			}
+		}
+	}
+
+	await prisma.role.create({
+		data: {
+			name: 'user',
+			permissions: {
+				connect: await prisma.permission.findMany({
+					where: {
+						access: 'own',
+					},
+				}),
+			},
+		},
+	})
+
+	await prisma.role.create({
+		data: {
+			name: 'admin',
+			permissions: {
+				connect: await prisma.permission.findMany({
+					where: {
+						access: 'any',
+					},
+				}),
+			},
+		},
+	})
 
 	const totalUsers = 3
 	console.time(`👤 Created ${totalUsers} users...`)
@@ -89,6 +136,12 @@ async function seed() {
 					...userData,
 					password: { create: createPassword(userData.username) },
 					image: { create: userImages[index % 10] },
+
+					roles: {
+						connect: {
+							name: 'user',
+						},
+					},
 					notes: {
 						create: Array.from({
 							length: faker.number.int({ min: 2, max: 4 }),
@@ -158,6 +211,16 @@ async function seed() {
 			name: 'Kody',
 			image: { create: kodyImages.kodyUser },
 			password: { create: createPassword('kodylovesyou') },
+			roles: {
+				connect: [
+					{
+						name: 'admin',
+					},
+					{
+						name: 'user',
+					},
+				],
+			},
 			notes: {
 				create: [
 					{
