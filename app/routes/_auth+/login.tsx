@@ -33,6 +33,7 @@ import { verifySessionStorage } from '#app/utils/verification.server.ts'
 
 const unverifiedSessionIdKey = 'unverified-session-id'
 const rememberKey = 'remember-me'
+const verifiedTimeKey = 'verified-time'
 
 export async function handleVerification({
 	request,
@@ -46,36 +47,71 @@ export async function handleVerification({
 		request.headers.get('cookie'),
 	)
 
-	const session = await prisma.session.findUnique({
-		select: { expirationDate: true },
-		where: { id: verifySession.get(unverifiedSessionIdKey) },
-	})
-	if (!session) {
-		throw await redirectWithToast('/login', {
-			type: 'error',
-			title: 'Invalid session',
-			description: 'Could not find session to verify. Please try again.',
-		})
-	}
-
-	cookieSession.set(sessionKey, verifySession.get(unverifiedSessionIdKey))
-
 	const remember = verifySession.get(rememberKey)
 	const { redirectTo } = submission.value
-
 	const headers = new Headers()
-	headers.append(
-		'set-cookie',
-		await sessionStorage.commitSession(cookieSession, {
-			expires: remember ? session.expirationDate : undefined,
-		}),
-	)
+
+	cookieSession.set(verifiedTimeKey, Date.now())
+
+	const unverifiedSessionId = verifySession.get(unverifiedSessionIdKey)
+	if (unverifiedSessionId) {
+		const session = await prisma.session.findUnique({
+			select: { expirationDate: true },
+			where: { id: unverifiedSessionId },
+		})
+		if (!session) {
+			throw await redirectWithToast('/login', {
+				type: 'error',
+				title: 'Invalid session',
+				description: 'Could not find session to verify. Please try again.',
+			})
+		}
+		cookieSession.set(sessionKey, unverifiedSessionId)
+
+		headers.append(
+			'set-cookie',
+			await sessionStorage.commitSession(cookieSession, {
+				expires: remember ? session.expirationDate : undefined,
+			}),
+		)
+	} else {
+		headers.append(
+			'set-cookie',
+			await sessionStorage.commitSession(cookieSession),
+		)
+	}
+
 	headers.append(
 		'set-cookie',
 		await verifySessionStorage.destroySession(verifySession),
 	)
 
 	return redirect(safeRedirect(redirectTo), { headers })
+}
+
+export async function shouldRequestTwoFA({
+	request,
+	userId,
+}: {
+	request: Request
+	userId: string
+}) {
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	if (verifySession.has(unverifiedSessionIdKey)) return true
+	// if it's over two hours since they last verified, we should request 2FA again
+	const userHasTwoFA = await prisma.verification.findUnique({
+		select: { id: true },
+		where: { target_type: { target: userId, type: twoFAVerificationType } },
+	})
+	if (!userHasTwoFA) return false
+	const cookieSession = await sessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const verifiedTime = cookieSession.get(verifiedTimeKey) ?? new Date(0)
+	const twoHours = 1000 * 60 * 60 * 2
+	return Date.now() - verifiedTime > twoHours
 }
 
 const LoginFormSchema = z.object({
