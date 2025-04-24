@@ -17,16 +17,66 @@ import { CheckboxField, ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import {
-	getSessionExpirationDate,
-	login,
-	requireAnonymous,
-	sessionKey,
-} from '#app/utils/auth.server.ts'
+	getRedirectToUrl,
+	type VerifyFunctionArgs,
+} from '#app/routes/_auth+/verify.tsx'
+import { twoFAVerificationType } from '#app/routes/settings+/profile.two-factor.tsx'
+import { login, requireAnonymous, sessionKey } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
+import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
-import { useIsPending } from '#app/utils/misc.tsx'
+import { invariant, useIsPending } from '#app/utils/misc.tsx'
 import { sessionStorage } from '#app/utils/session.server.ts'
+import { redirectWithToast } from '#app/utils/toast.server.ts'
 import { PasswordSchema, UsernameSchema } from '#app/utils/user-validation.ts'
+import { verifySessionStorage } from '#app/utils/verification.server.ts'
+
+const unverifiedSessionIdKey = 'unverified-session-id'
+const rememberKey = 'remember-me'
+
+export async function handleVerification({
+	request,
+	submission,
+}: VerifyFunctionArgs) {
+	invariant(submission.value, 'Submission should have a value by this point')
+	const cookieSession = await sessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+	const verifySession = await verifySessionStorage.getSession(
+		request.headers.get('cookie'),
+	)
+
+	const session = await prisma.session.findUnique({
+		select: { expirationDate: true },
+		where: { id: verifySession.get(unverifiedSessionIdKey) },
+	})
+	if (!session) {
+		throw await redirectWithToast('/login', {
+			type: 'error',
+			title: 'Invalid session',
+			description: 'Could not find session to verify. Please try again.',
+		})
+	}
+
+	cookieSession.set(sessionKey, verifySession.get(unverifiedSessionIdKey))
+
+	const remember = verifySession.get(rememberKey)
+	const { redirectTo } = submission.value
+
+	const headers = new Headers()
+	headers.append(
+		'set-cookie',
+		await sessionStorage.commitSession(cookieSession, {
+			expires: remember ? session.expirationDate : undefined,
+		}),
+	)
+	headers.append(
+		'set-cookie',
+		await verifySessionStorage.destroySession(verifySession),
+	)
+
+	return redirect(safeRedirect(redirectTo), { headers })
+}
 
 const LoginFormSchema = z.object({
 	username: UsernameSchema,
@@ -78,19 +128,44 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	const { session, remember, redirectTo } = submission.value
 
-	const cookieSession = await sessionStorage.getSession(
-		request.headers.get('cookie'),
-	)
-
-	cookieSession.set(sessionKey, session.id)
-
-	return redirect(safeRedirect(redirectTo), {
-		headers: {
-			'set-cookie': await sessionStorage.commitSession(cookieSession, {
-				expires: remember ? getSessionExpirationDate() : undefined,
-			}),
+	const verification = await prisma.verification.findUnique({
+		select: { id: true },
+		where: {
+			target_type: { target: session.userId, type: twoFAVerificationType },
 		},
 	})
+
+	const userHasTwoFactor = Boolean(verification)
+
+	if (userHasTwoFactor) {
+		const verifySession = await verifySessionStorage.getSession()
+		verifySession.set(unverifiedSessionIdKey, session.id)
+		verifySession.set(rememberKey, remember)
+		const redirectUrl = getRedirectToUrl({
+			request,
+			type: twoFAVerificationType,
+			target: session.userId,
+			redirectTo,
+		})
+		return redirect(redirectUrl.toString(), {
+			headers: {
+				'set-cookie': await verifySessionStorage.commitSession(verifySession),
+			},
+		})
+	} else {
+		const cookieSession = await sessionStorage.getSession(
+			request.headers.get('cookie'),
+		)
+		cookieSession.set(sessionKey, session.id)
+
+		return redirect(safeRedirect(redirectTo), {
+			headers: {
+				'set-cookie': await sessionStorage.commitSession(cookieSession, {
+					expires: remember ? session.expirationDate : undefined,
+				}),
+			},
+		})
+	}
 }
 
 export default function LoginPage() {

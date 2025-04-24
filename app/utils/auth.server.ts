@@ -110,6 +110,7 @@ export async function login({
 		select: {
 			id: true,
 			expirationDate: true,
+			userId: true,
 		},
 		data: {
 			expirationDate: getSessionExpirationDate(),
