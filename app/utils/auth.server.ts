@@ -38,19 +38,6 @@ export async function getUserId(request: Request) {
 	}
 	return session.user.id
 }
-
-export async function requireUser(request: Request) {
-	const userId = await requireUserId(request)
-	const user = await prisma.user.findUnique({
-		select: { id: true, username: true },
-		where: { id: userId },
-	})
-	if (!user) {
-		throw await logout({ request })
-	}
-	return user
-}
-
 export async function requireUserId(
 	request: Request,
 	{ redirectTo }: { redirectTo?: string | null } = {},
@@ -69,6 +56,18 @@ export async function requireUserId(
 		throw redirect(loginRedirect)
 	}
 	return userId
+}
+
+export async function requireUser(request: Request) {
+	const userId = await requireUserId(request)
+	const user = await prisma.user.findUnique({
+		select: { id: true, username: true },
+		where: { id: userId },
+	})
+	if (!user) {
+		throw await logout({ request })
+	}
+	return user
 }
 
 export async function requireAnonymous(request: Request) {

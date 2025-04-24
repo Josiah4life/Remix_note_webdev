@@ -18,6 +18,7 @@ import { ErrorList, Field } from '#app/components/forms.tsx'
 import { Spacer } from '#app/components/spacer.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
 import { handleVerification as handleChangeEmailVerification } from '#app/routes/settings+/profile.change-email.tsx'
+import { type twoFAVerifyVerificationType } from '#app/routes/settings+/profile.two-factor.verify.tsx'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { getDomainUrl, useIsPending } from '#app/utils/misc.tsx'
@@ -29,7 +30,7 @@ export const targetQueryParam = 'target'
 export const typeQueryParam = 'type'
 export const redirectToQueryParam = 'redirectTo'
 
-const types = ['onboarding', 'reset-password', 'change-email'] as const
+const types = ['onboarding', 'reset-password', 'change-email', '2fa'] as const
 const verificationTypeSchema = z.enum(types)
 export type VerificationTypes = z.infer<typeof verificationTypeSchema>
 
@@ -139,7 +140,7 @@ export async function isCodeValid({
 	target,
 }: {
 	code: string
-	type: VerificationTypes
+	type: VerificationTypes | typeof twoFAVerifyVerificationType
 	target: string
 }) {
 	const verification = await prisma.verification.findUnique({
@@ -216,6 +217,9 @@ async function validateRequest(
 
 		case 'change-email': {
 			return handleChangeEmailVerification({ request, body, submission })
+		}
+		case '2fa': {
+			throw new Error('Not yet implemented ')
 		}
 	}
 }

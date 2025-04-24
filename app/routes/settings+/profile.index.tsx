@@ -13,6 +13,7 @@ import { ErrorList, Field } from '#app/components/forms.tsx'
 import { Button } from '#app/components/ui/button.tsx'
 import { Icon } from '#app/components/ui/icon.tsx'
 import { StatusButton } from '#app/components/ui/status-button.tsx'
+import { twoFAVerificationType } from '#app/routes/settings+/profile.two-factor.tsx'
 import { requireUserId, sessionKey } from '#app/utils/auth.server.ts'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
@@ -61,9 +62,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 		},
 	})
 
+	const verification = await prisma.verification.findUnique({
+		where: { target_type: { type: twoFAVerificationType, target: userId } },
+		select: { id: true },
+	})
+
 	invariantResponse(user, 'User not found', { status: 404 })
 
-	return json({ user })
+	return json({ user, isTwoFAEnabled: Boolean(verification) })
 }
 
 type ProfileActionArgs = {
@@ -134,6 +140,15 @@ export default function EditUserProfile() {
 						<Icon name="envelope-closed">
 							Change email from {data.user.email}
 						</Icon>
+					</Link>
+				</div>
+				<div>
+					<Link to="two-factor">
+						{data.isTwoFAEnabled ? (
+							<Icon name="lock-closed">2FA is enabled</Icon>
+						) : (
+							<Icon name="lock-open-1">Enable 2FA</Icon>
+						)}
 					</Link>
 				</div>
 				<div>
