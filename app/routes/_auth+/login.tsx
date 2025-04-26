@@ -22,6 +22,7 @@ import {
 } from '#app/routes/_auth+/verify.tsx'
 import { twoFAVerificationType } from '#app/routes/settings+/profile.two-factor.tsx'
 import { login, requireAnonymous, sessionKey } from '#app/utils/auth.server.ts'
+import { ProviderConnectionForm } from '#app/utils/connections.tsx'
 import { validateCSRF } from '#app/utils/csrf.server.ts'
 import { prisma } from '#app/utils/db.server.ts'
 import { checkHoneypot } from '#app/utils/honeypot.server.ts'
@@ -34,6 +35,50 @@ import { verifySessionStorage } from '#app/utils/verification.server.ts'
 const unverifiedSessionIdKey = 'unverified-session-id'
 const rememberKey = 'remember-me'
 const verifiedTimeKey = 'verified-time'
+
+export async function handleNewSession(
+	{
+		request,
+		session,
+		redirectTo,
+		remember = false,
+	}: {
+		request: Request
+		session: { userId: string; id: string; expirationDate: Date }
+		redirectTo?: string
+		remember?: boolean
+	},
+	responseInit?: ResponseInit,
+) {
+	if (await shouldRequestTwoFA({ request, userId: session.userId })) {
+		const verifySession = await verifySessionStorage.getSession()
+		verifySession.set(unverifiedSessionIdKey, session.id)
+		verifySession.set(rememberKey, remember)
+		const redirectUrl = getRedirectToUrl({
+			request,
+			type: twoFAVerificationType,
+			target: session.userId,
+		})
+		return redirect(redirectUrl.toString(), {
+			headers: {
+				'set-cookie': await verifySessionStorage.commitSession(verifySession),
+			},
+		})
+	} else {
+		const cookieSession = await sessionStorage.getSession(
+			request.headers.get('cookie'),
+		)
+		cookieSession.set(sessionKey, session.id)
+
+		return redirect(safeRedirect(redirectTo), {
+			headers: {
+				'set-cookie': await sessionStorage.commitSession(cookieSession, {
+					expires: remember ? session.expirationDate : undefined,
+				}),
+			},
+		})
+	}
+}
 
 export async function handleVerification({
 	request,
@@ -164,45 +209,48 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	const { session, remember, redirectTo } = submission.value
 
-	const verification = await prisma.verification.findUnique({
-		select: { id: true },
-		where: {
-			target_type: { target: session.userId, type: twoFAVerificationType },
-		},
-	})
-
-	const userHasTwoFactor = Boolean(verification)
-
-	if (userHasTwoFactor) {
-		const verifySession = await verifySessionStorage.getSession()
-		verifySession.set(unverifiedSessionIdKey, session.id)
-		verifySession.set(rememberKey, remember)
-		const redirectUrl = getRedirectToUrl({
-			request,
-			type: twoFAVerificationType,
-			target: session.userId,
-			redirectTo,
-		})
-		return redirect(redirectUrl.toString(), {
-			headers: {
-				'set-cookie': await verifySessionStorage.commitSession(verifySession),
-			},
-		})
-	} else {
-		const cookieSession = await sessionStorage.getSession(
-			request.headers.get('cookie'),
-		)
-		cookieSession.set(sessionKey, session.id)
-
-		return redirect(safeRedirect(redirectTo), {
-			headers: {
-				'set-cookie': await sessionStorage.commitSession(cookieSession, {
-					expires: remember ? session.expirationDate : undefined,
-				}),
-			},
-		})
-	}
+	return handleNewSession({ request, session, remember, redirectTo })
 }
+
+// 	const verification = await prisma.verification.findUnique({
+// 		select: { id: true },
+// 		where: {
+// 			target_type: { target: session.userId, type: twoFAVerificationType },
+// 		},
+// 	})
+
+// 	const userHasTwoFactor = Boolean(verification)
+
+// 	if (userHasTwoFactor) {
+// 		const verifySession = await verifySessionStorage.getSession()
+// 		verifySession.set(unverifiedSessionIdKey, session.id)
+// 		verifySession.set(rememberKey, remember)
+// 		const redirectUrl = getRedirectToUrl({
+// 			request,
+// 			type: twoFAVerificationType,
+// 			target: session.userId,
+// 			redirectTo,
+// 		})
+// 		return redirect(redirectUrl.toString(), {
+// 			headers: {
+// 				'set-cookie': await verifySessionStorage.commitSession(verifySession),
+// 			},
+// 		})
+// 	} else {
+// 		const cookieSession = await sessionStorage.getSession(
+// 			request.headers.get('cookie'),
+// 		)
+// 		cookieSession.set(sessionKey, session.id)
+
+// 		return redirect(safeRedirect(redirectTo), {
+// 			headers: {
+// 				'set-cookie': await sessionStorage.commitSession(cookieSession, {
+// 					expires: remember ? session.expirationDate : undefined,
+// 				}),
+// 			},
+// 		})
+// 	}
+// }
 
 export default function LoginPage() {
 	const actionData = useActionData<typeof action>()
@@ -295,6 +343,13 @@ export default function LoginPage() {
 								</StatusButton>
 							</div>
 						</Form>
+						<div className="mt-5 flex flex-col gap-5 border-b-2 border-t-2 border-border py-3">
+							<ProviderConnectionForm
+								type="Login"
+								providerName="github"
+								redirectTo={redirectTo}
+							/>
+						</div>
 						<div className="flex items-center justify-center gap-2 pt-6">
 							<span className="text-muted-foreground">New here?</span>
 							<Link
